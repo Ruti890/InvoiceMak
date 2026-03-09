@@ -47,7 +47,7 @@ export default function DashboardLayout({ children }) {
             `}>
                 <div className="p-6 border-b border-gray-800 flex justify-between items-center">
                     <h1 className="text-xl font-bold bg-gradient-to-r from-blue-400 to-purple-500 bg-clip-text text-transparent">
-                        InvoiceMaker Pro
+                        Lexis
                     </h1>
                     <button onClick={() => setIsMobileMenuOpen(false)} className="lg:hidden text-gray-400">
                         <X size={24} />
@@ -118,7 +118,7 @@ export default function DashboardLayout({ children }) {
                     <button onClick={() => setIsMobileMenuOpen(true)} className="text-gray-400">
                         <Menu size={24} />
                     </button>
-                    <span className="font-bold text-gray-100">InvoiceMaker Pro</span>
+                    <span className="font-bold text-gray-100">Lexis</span>
                     <div className="w-6" />
                 </header>
 

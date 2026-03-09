@@ -19,7 +19,7 @@ export default function AuthSuccess() {
 
                 <h2 className="text-3xl font-bold text-white mb-4">Email Confirmado</h2>
                 <p className="text-gray-400 mb-8 leading-relaxed">
-                    ¡Tu dirección de correo electrónico ha sido confirmada con éxito! Ya puedes acceder a todas las funcionalidades de <span className="text-blue-400 font-semibold">InvoiceMaker Pro</span>.
+                    ¡Tu dirección de correo electrónico ha sido confirmada con éxito! Ya puedes acceder a todas las funcionalidades de <span className="text-blue-400 font-semibold">Lexis</span>.
                 </p>
 
                 <div className="flex flex-col space-y-4">
