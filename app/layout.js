@@ -2,8 +2,8 @@ import './globals.css';
 import { AuthProvider } from '@/context/AuthContext';
 
 export const metadata = {
-    title: 'InvoiceMaker Pro',
-    description: 'Professional invoicing platform built with Next.js and Supabase',
+    title: 'Lexis ',
+    description: 'Organize your processes',
 };
 
 export default function RootLayout({ children }) {
