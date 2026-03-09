@@ -1,10 +1,10 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
     // No CORS headers needed — frontend and API are on the same origin
-    experimental: {
-        serverComponentsExternalPackages: ['pdfkit'],
+    serverExternalPackages: ['pdfkit'],
+    devIndicators: {
+        buildActivity: false,
     },
-    devIndicators: false,
 };
 
 export default nextConfig;

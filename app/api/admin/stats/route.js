@@ -1,25 +1,34 @@
-
 import { NextResponse } from 'next/server';
 import { verifyAdmin } from '@/lib/auth.js';
-import User from '@/models/User.js';
-import { Invoice } from '@/models/Invoice.js';
-import sequelize, { initDB } from '@/lib/db.js';
+import { createClient } from '@/lib/supabase/server';
 
 // GET /api/admin/stats
 export async function GET() {
-    await initDB();
     try {
         await verifyAdmin();
+        const supabase = await createClient();
 
-        const totalUsers = await User.count();
-        const totalInvoices = await Invoice.count();
+        // Get total users
+        const { count: totalUsers, error: userError } = await supabase
+            .from('profiles')
+            .select('*', { count: 'exact', head: true });
 
-        const [revenueResult] = await sequelize.query('SELECT SUM(total) as total_revenue FROM "Invoices"');
-        const totalRevenue = parseFloat(revenueResult[0]?.total_revenue) || 0;
+        if (userError) throw userError;
+
+        // Get total invoices and total revenue
+        const { data: invoices, error: invoiceError } = await supabase
+            .from('invoices')
+            .select('total');
+
+        if (invoiceError) throw invoiceError;
+
+        const totalInvoices = invoices.length;
+        const totalRevenue = invoices.reduce((sum, inv) => sum + parseFloat(inv.total || 0), 0);
 
         return NextResponse.json({ totalUsers, totalInvoices, totalRevenue });
     } catch (err) {
         if (err instanceof Response) return err;
+        console.error('[admin/stats]', err);
         return NextResponse.json({ msg: 'Server Error' }, { status: 500 });
     }
 }
