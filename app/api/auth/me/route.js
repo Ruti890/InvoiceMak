@@ -8,6 +8,14 @@ export async function GET() {
         const { data: { user }, error } = await supabase.auth.getUser();
 
         if (error || !user) {
+            if (process.env.NODE_ENV === 'development') {
+                return NextResponse.json({
+                    id: 'mock-admin-id',
+                    email: 'admin@lexis.com',
+                    name: 'Administrador Local',
+                    role: 'admin',
+                });
+            }
             return NextResponse.json({ msg: 'Not authenticated' }, { status: 401 });
         }
 

@@ -2,7 +2,11 @@
 
 import { useState, useEffect, use } from 'react';
 import { useRouter } from 'next/navigation';
-import { Plus, Trash, Save, ArrowLeft, User, Package } from 'lucide-react';
+import { Plus, Trash2, Save, ArrowLeft, User, Package, FileText } from 'lucide-react';
+
+// ── Shared select/input style ────────────────────────────────────────────────
+const inputCls = 'w-full bg-[#111] border border-[#2a2a2a] text-[13px] text-white placeholder-[#444] px-3 py-2.5 rounded-[6px] outline-none focus:border-green-500/50 focus:ring-1 focus:ring-green-500/20 transition-all';
+const labelCls = 'block text-[11px] font-medium text-[#555] uppercase tracking-wide mb-1.5';
 
 export default function InvoiceCreate({ params }) {
     const resolvedParams = use(params);
@@ -10,15 +14,12 @@ export default function InvoiceCreate({ params }) {
     const isEditing = !!id;
     const router = useRouter();
 
-    const [clients, setClients] = useState([]);
-    const [products, setProducts] = useState([]);
-    const [loading, setLoading] = useState(true);
+    const [clients, setClients]     = useState([]);
+    const [products, setProducts]   = useState([]);
+    const [loading, setLoading]     = useState(true);
+    const [saving, setSaving]       = useState(false);
     const [invoiceData, setInvoiceData] = useState({
-        clientId: '',
-        dueDate: '',
-        taxRate: 0,
-        notes: '',
-        items: []
+        clientId: '', dueDate: '', taxRate: 0, notes: '', items: []
     });
 
     useEffect(() => {
@@ -29,8 +30,7 @@ export default function InvoiceCreate({ params }) {
                     fetch('/api/products'),
                 ]);
                 const [clientsData, productsData] = await Promise.all([
-                    clientsRes.json(),
-                    productsRes.json(),
+                    clientsRes.json(), productsRes.json(),
                 ]);
                 setClients(clientsData);
                 setProducts(productsData);
@@ -38,13 +38,11 @@ export default function InvoiceCreate({ params }) {
                 if (isEditing) {
                     const invoiceRes = await fetch(`/api/invoices/${id}`);
                     const invoice = await invoiceRes.json();
-
                     const mappedItems = invoice.invoice_items?.map(item => ({
                         productId: item.product_id,
                         quantity: item.quantity,
                         price: parseFloat(item.price)
                     })) || [];
-
                     setInvoiceData({
                         clientId: invoice.client_id,
                         dueDate: invoice.due_date || '',
@@ -53,19 +51,14 @@ export default function InvoiceCreate({ params }) {
                         items: mappedItems,
                     });
                 }
-            } catch (err) {
-                console.error(err);
-            } finally {
-                setLoading(false);
-            }
+            } catch (err) { console.error(err); }
+            finally { setLoading(false); }
         };
         fetchData();
     }, [id, isEditing]);
 
-    const handleAddItem = () => {
-        setInvoiceData({ ...invoiceData, items: [...invoiceData.items, { productId: '', quantity: 1, price: 0 }] });
-    };
-
+    const handleAddItem    = () => setInvoiceData({ ...invoiceData, items: [...invoiceData.items, { productId: '', quantity: 1, price: 0 }] });
+    const handleRemoveItem = (i) => setInvoiceData({ ...invoiceData, items: invoiceData.items.filter((_, idx) => idx !== i) });
     const handleItemChange = (index, field, value) => {
         const newItems = [...invoiceData.items];
         newItems[index][field] = value;
@@ -76,154 +69,212 @@ export default function InvoiceCreate({ params }) {
         setInvoiceData({ ...invoiceData, items: newItems });
     };
 
-    const handleRemoveItem = (index) => {
-        setInvoiceData({ ...invoiceData, items: invoiceData.items.filter((_, i) => i !== index) });
-    };
-
-    const calculateTotal = () => invoiceData.items.reduce((sum, item) => sum + (item.quantity * item.price), 0);
+    const subtotal      = invoiceData.items.reduce((s, it) => s + it.quantity * it.price, 0);
+    const tax           = subtotal * (invoiceData.taxRate / 100);
+    const total         = subtotal + tax;
+    const fmt           = (v) => `$${v.toLocaleString('es-CO', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
 
     const handleSubmit = async (e) => {
         e.preventDefault();
         if (!invoiceData.clientId || invoiceData.items.length === 0) {
-            alert('Please select a client and add at least one item.');
+            alert('Selecciona un cliente y agrega al menos un ítem.');
             return;
         }
+        setSaving(true);
         try {
             const method = isEditing ? 'PUT' : 'POST';
-            const url = isEditing ? `/api/invoices/${id}` : '/api/invoices';
-            const res = await fetch(url, {
+            const url    = isEditing ? `/api/invoices/${id}` : '/api/invoices';
+            const res    = await fetch(url, {
                 method,
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify(invoiceData),
             });
-            if (!res.ok) {
-                const err = await res.json();
-                throw new Error(err.error || err.msg || 'Error saving invoice');
-            }
+            if (!res.ok) { const err = await res.json(); throw new Error(err.error || 'Error al guardar'); }
             router.push('/invoices');
-        } catch (err) {
-            alert(`Error: ${err.message}`);
-        }
+        } catch (err) { alert(`Error: ${err.message}`); }
+        finally { setSaving(false); }
     };
 
-    if (loading) return <div className="text-center text-gray-400 py-8">Loading...</div>;
+    if (loading) return (
+        <div className="flex items-center justify-center h-64">
+            <div className="w-6 h-6 spinner-amber" />
+        </div>
+    );
 
     return (
-        <div className="max-w-4xl mx-auto">
-            <div className="flex items-center mb-8">
-                <button onClick={() => router.push('/invoices')} className="mr-4 text-gray-400 hover:text-white transition-colors">
-                    <ArrowLeft size={24} />
+        <div className="p-5 lg:p-6 max-w-4xl mx-auto">
+            {/* Header */}
+            <div className="flex items-center gap-3 mb-6">
+                <button
+                    onClick={() => router.push('/invoices')}
+                    className="w-8 h-8 flex items-center justify-center rounded-[6px] border border-[#2a2a2a] text-[#666] hover:text-white hover:border-[#3a3a3a] transition-all">
+                    <ArrowLeft size={15} />
                 </button>
                 <div>
-                    <h1 className="text-3xl font-bold text-white mb-1">{isEditing ? 'Edit Invoice' : 'Create Invoice'}</h1>
-                    <p className="text-gray-400">{isEditing ? 'Update invoice details' : 'Generate a new invoice for your client'}</p>
+                    <h1 className="text-[20px] font-bold text-white leading-tight">
+                        {isEditing ? 'Editar Factura' : 'Nueva Factura'}
+                    </h1>
+                    <p className="text-[12px] text-[#555] mt-0.5">
+                        {isEditing ? 'Actualiza los detalles de esta factura' : 'Genera una nueva factura para tu cliente'}
+                    </p>
                 </div>
             </div>
 
-            <form onSubmit={handleSubmit} className="space-y-6">
-                {/* Client & Date Section */}
-                <div className="bg-[#111] p-6 rounded-2xl border border-gray-800 shadow-lg">
-                    <h2 className="text-xl font-bold text-white mb-4 flex items-center">
-                        <User size={20} className="mr-2 text-blue-500" />
-                        Client Details
-                    </h2>
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <form onSubmit={handleSubmit} className="space-y-4">
+                {/* ── Client & Date ── */}
+                <div className="bg-[#1a1a1a] border border-[#2a2a2a] rounded-[8px] p-5">
+                    <div className="flex items-center gap-2 mb-4">
+                        <div className="w-7 h-7 rounded-[6px] bg-blue-500/10 flex items-center justify-center">
+                            <User size={14} className="text-blue-400" />
+                        </div>
+                        <h2 className="text-[13px] font-semibold text-white">Información del Cliente</h2>
+                    </div>
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                         <div>
-                            <label className="block text-sm font-medium text-gray-400 mb-1">Select Client</label>
-                            <select
-                                className="w-full bg-[#1a1a1a] border border-gray-800 text-white p-3 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500"
+                            <label className={labelCls}>Cliente *</label>
+                            <select className={inputCls}
                                 value={invoiceData.clientId}
-                                onChange={(e) => setInvoiceData({ ...invoiceData, clientId: e.target.value })}
+                                onChange={e => setInvoiceData({ ...invoiceData, clientId: e.target.value })}
                                 required>
-                                <option value="">-- Select Client --</option>
+                                <option value="">— Seleccionar cliente —</option>
                                 {clients.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
                             </select>
                         </div>
                         <div>
-                            <label className="block text-sm font-medium text-gray-400 mb-1">Due Date</label>
-                            <input type="date"
-                                className="w-full bg-[#1a1a1a] border border-gray-800 text-white p-3 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500"
+                            <label className={labelCls}>Fecha de Vencimiento</label>
+                            <input type="date" className={inputCls}
                                 value={invoiceData.dueDate}
-                                onChange={(e) => setInvoiceData({ ...invoiceData, dueDate: e.target.value })} />
+                                onChange={e => setInvoiceData({ ...invoiceData, dueDate: e.target.value })} />
                         </div>
                     </div>
                 </div>
 
-                {/* Items Section */}
-                <div className="bg-[#111] p-6 rounded-2xl border border-gray-800 shadow-lg">
-                    <div className="flex justify-between items-center mb-4">
-                        <h2 className="text-xl font-bold text-white flex items-center">
-                            <Package size={20} className="mr-2 text-orange-500" />
-                            Invoice Items
-                        </h2>
+                {/* ── Items ── */}
+                <div className="bg-[#1a1a1a] border border-[#2a2a2a] rounded-[8px] p-5">
+                    <div className="flex items-center justify-between mb-4">
+                        <div className="flex items-center gap-2">
+                            <div className="w-7 h-7 rounded-[6px] bg-amber-500/10 flex items-center justify-center">
+                                <Package size={14} className="text-amber-400" />
+                            </div>
+                            <h2 className="text-[13px] font-semibold text-white">Ítems de la Factura</h2>
+                        </div>
                         <button type="button" onClick={handleAddItem}
-                            className="text-sm bg-blue-600/10 text-blue-400 px-3 py-1.5 rounded-lg hover:bg-blue-600/20 transition-colors flex items-center">
-                            <Plus size={16} className="mr-1" /> Add Item
+                            className="flex items-center gap-1.5 px-3 py-1.5 text-[11px] font-medium text-green-400 border border-green-500/20 bg-green-500/5 hover:bg-green-500/10 rounded-[6px] transition-all">
+                            <Plus size={12} /> Agregar Ítem
                         </button>
                     </div>
 
-                    <div className="space-y-4">
-                        {invoiceData.items.length === 0 && (
-                            <p className="text-gray-500 text-center py-4 italic">No items added yet.</p>
-                        )}
-                        {invoiceData.items.map((item, index) => (
-                            <div key={index} className="flex flex-col md:flex-row gap-4 items-end bg-[#1a1a1a] p-4 rounded-xl border border-gray-800">
-                                <div className="flex-1 w-full">
-                                    <label className="block text-xs font-medium text-gray-500 mb-1">Product</label>
-                                    <select
-                                        className="w-full bg-[#111] border border-gray-700 text-white p-2 rounded-lg focus:outline-none focus:ring-1 focus:ring-blue-500"
-                                        value={item.productId}
-                                        onChange={(e) => handleItemChange(index, 'productId', e.target.value)}
-                                        required>
-                                        <option value="">Select Product</option>
-                                        {products.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
-                                    </select>
-                                </div>
-                                <div className="w-24">
-                                    <label className="block text-xs font-medium text-gray-500 mb-1">Qty</label>
-                                    <input type="number" min="1"
-                                        className="w-full bg-[#111] border border-gray-700 text-white p-2 rounded-lg focus:outline-none focus:ring-1 focus:ring-blue-500"
-                                        value={item.quantity}
-                                        onChange={(e) => handleItemChange(index, 'quantity', parseInt(e.target.value))}
-                                        required />
-                                </div>
-                                <div className="w-32">
-                                    <label className="block text-xs font-medium text-gray-500 mb-1">Price</label>
-                                    <input type="number" step="0.01"
-                                        className="w-full bg-[#111] border border-gray-700 text-white p-2 rounded-lg"
-                                        value={item.price} readOnly />
-                                </div>
-                                <div className="w-32">
-                                    <label className="block text-xs font-medium text-gray-500 mb-1">Total</label>
-                                    <div className="w-full bg-[#111] border border-gray-700 text-gray-300 p-2 rounded-lg">
-                                        ${(item.quantity * item.price).toFixed(2)}
-                                    </div>
-                                </div>
-                                <button type="button" onClick={() => handleRemoveItem(index)}
-                                    className="p-2 text-red-400 hover:bg-red-500/10 rounded-lg transition-colors mb-[1px]">
-                                    <Trash size={20} />
+                    {/* Table header */}
+                    {invoiceData.items.length > 0 && (
+                        <div className="hidden md:grid grid-cols-[1fr_80px_120px_100px_36px] gap-3 mb-2 px-1">
+                            {['Producto', 'Cantidad', 'Precio Unit.', 'Total', ''].map((h, i) => (
+                                <span key={i} className="text-[10px] font-semibold text-[#555] uppercase tracking-wider">{h}</span>
+                            ))}
+                        </div>
+                    )}
+
+                    <div className="space-y-2">
+                        {invoiceData.items.length === 0 ? (
+                            <div className="flex flex-col items-center py-10 text-center border border-dashed border-[#2a2a2a] rounded-[6px]">
+                                <Package size={20} className="text-[#333] mb-2" />
+                                <p className="text-[12px] text-[#555]">Sin ítems. Agrega productos para generar la factura.</p>
+                                <button type="button" onClick={handleAddItem}
+                                    className="mt-3 flex items-center gap-1.5 px-3 py-1.5 text-[11px] font-medium text-green-400 border border-green-500/20 bg-green-500/5 hover:bg-green-500/10 rounded-[6px] transition-all">
+                                    <Plus size={12} /> Agregar primer ítem
                                 </button>
                             </div>
-                        ))}
+                        ) : (
+                            invoiceData.items.map((item, index) => (
+                                <div key={index} className="grid grid-cols-1 md:grid-cols-[1fr_80px_120px_100px_36px] gap-3 items-center bg-[#111] border border-[#1e1e1e] rounded-[6px] p-3">
+                                    {/* Product select */}
+                                    <div>
+                                        <label className="block md:hidden text-[10px] text-[#555] mb-1">Producto</label>
+                                        <select className={inputCls}
+                                            value={item.productId}
+                                            onChange={e => handleItemChange(index, 'productId', e.target.value)}
+                                            required>
+                                            <option value="">Seleccionar producto</option>
+                                            {products.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
+                                        </select>
+                                    </div>
+                                    {/* Qty */}
+                                    <div>
+                                        <label className="block md:hidden text-[10px] text-[#555] mb-1">Cantidad</label>
+                                        <input type="number" min="1" className={inputCls}
+                                            value={item.quantity}
+                                            onChange={e => handleItemChange(index, 'quantity', parseInt(e.target.value) || 1)}
+                                            required />
+                                    </div>
+                                    {/* Unit price */}
+                                    <div>
+                                        <label className="block md:hidden text-[10px] text-[#555] mb-1">Precio Unit.</label>
+                                        <div className="flex items-center gap-1.5 px-3 py-2.5 bg-[#0a0a0a] border border-[#1e1e1e] rounded-[6px]">
+                                            <span className="text-[12px] text-green-400 font-semibold">{fmt(item.price)}</span>
+                                        </div>
+                                    </div>
+                                    {/* Line total */}
+                                    <div>
+                                        <label className="block md:hidden text-[10px] text-[#555] mb-1">Total</label>
+                                        <div className="flex items-center gap-1.5 px-3 py-2.5 bg-[#0a0a0a] border border-[#1e1e1e] rounded-[6px]">
+                                            <span className="text-[12px] text-white font-semibold">{fmt(item.quantity * item.price)}</span>
+                                        </div>
+                                    </div>
+                                    {/* Remove */}
+                                    <button type="button" onClick={() => handleRemoveItem(index)}
+                                        className="w-8 h-8 flex items-center justify-center text-[#444] hover:text-red-400 hover:bg-red-500/10 rounded-[6px] transition-all mx-auto">
+                                        <Trash2 size={14} />
+                                    </button>
+                                </div>
+                            ))
+                        )}
                     </div>
 
-                    <div className="mt-6 flex justify-end items-center border-t border-gray-800 pt-4">
-                        <div className="text-right">
-                            <span className="text-gray-400 mr-4">Total Amount:</span>
-                            <span className="text-2xl font-bold text-white">${calculateTotal().toFixed(2)}</span>
+                    {/* Totals */}
+                    {invoiceData.items.length > 0 && (
+                        <div className="mt-4 pt-4 border-t border-[#1e1e1e] flex flex-col items-end gap-1.5">
+                            <div className="flex items-center gap-8 text-[12px]">
+                                <span className="text-[#666]">Subtotal</span>
+                                <span className="text-[#aaa] font-medium w-28 text-right">{fmt(subtotal)}</span>
+                            </div>
+                            <div className="flex items-center gap-8 text-[12px]">
+                                <span className="text-[#666]">IVA ({invoiceData.taxRate}%)</span>
+                                <span className="text-[#aaa] font-medium w-28 text-right">{fmt(tax)}</span>
+                            </div>
+                            <div className="flex items-center gap-8 text-[13px] font-bold mt-1 pt-2 border-t border-[#1e1e1e]">
+                                <span className="text-white">Total</span>
+                                <span className="text-green-400 text-[16px] w-28 text-right">{fmt(total)}</span>
+                            </div>
                         </div>
-                    </div>
+                    )}
                 </div>
 
-                <div className="flex justify-end space-x-4">
+                {/* ── Notes ── */}
+                <div className="bg-[#1a1a1a] border border-[#2a2a2a] rounded-[8px] p-5">
+                    <div className="flex items-center gap-2 mb-3">
+                        <div className="w-7 h-7 rounded-[6px] bg-[#222] flex items-center justify-center">
+                            <FileText size={14} className="text-[#666]" />
+                        </div>
+                        <h2 className="text-[13px] font-semibold text-white">Notas / Observaciones</h2>
+                    </div>
+                    <textarea rows={3} placeholder="Condiciones de pago, instrucciones especiales, agradecimiento..."
+                        className="w-full bg-[#111] border border-[#2a2a2a] text-[13px] text-white placeholder-[#444] px-3 py-2.5 rounded-[6px] outline-none focus:border-green-500/50 focus:ring-1 focus:ring-green-500/20 transition-all resize-none"
+                        value={invoiceData.notes}
+                        onChange={e => setInvoiceData({ ...invoiceData, notes: e.target.value })} />
+                </div>
+
+                {/* ── Actions ── */}
+                <div className="flex justify-end gap-3 pt-2">
                     <button type="button" onClick={() => router.push('/invoices')}
-                        className="px-6 py-3 border border-gray-700 rounded-xl text-gray-400 hover:bg-gray-800 transition-colors font-medium">
-                        Cancel
+                        className="px-4 py-2.5 text-[12px] font-medium text-[#888] border border-[#2a2a2a] rounded-[6px] hover:bg-[#1a1a1a] hover:text-white transition-all">
+                        Cancelar
                     </button>
-                    <button type="submit"
-                        className="px-6 py-3 bg-blue-600 text-white rounded-xl hover:bg-blue-700 transition-colors shadow-lg shadow-blue-600/20 font-bold flex items-center">
-                        <Save size={20} className="mr-2" />
-                        {isEditing ? 'Update Invoice' : 'Save Invoice'}
+                    <button type="submit" disabled={saving}
+                        className="flex items-center gap-2 px-5 py-2.5 text-[12px] font-semibold text-black bg-green-500 hover:bg-green-400 rounded-[6px] disabled:opacity-50 transition-all shadow-lg shadow-green-500/20">
+                        {saving ? (
+                            <><span className="w-3.5 h-3.5 spinner-amber border-black/20 border-t-black inline-block" /> Guardando...</>
+                        ) : (
+                            <><Save size={14} />{isEditing ? 'Actualizar Factura' : 'Crear Factura'}</>
+                        )}
                     </button>
                 </div>
             </form>

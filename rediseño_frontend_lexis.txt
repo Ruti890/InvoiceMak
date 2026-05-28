@@ -1,0 +1,142 @@
+================================================================================
+ESPECIFICACIONES DEL REDISEÑO FRONTEND - LEXIS FACTURACIÓN
+================================================================================
+Este documento consolida toda la información del rediseño del frontend de Lexis,
+un SaaS de facturación para freelancers y emprendedores colombianos, basado en el 
+sistema de diseño "SalesOps" (Dark Theme Premium) e incorporando la estructura
+de navegación y páginas requerida.
+
+--------------------------------------------------------------------------------
+1. SISTEMA DE DISEÑO A IMPLEMENTAR (Basado en Imágenes de Referencia)
+--------------------------------------------------------------------------------
+* Fondo base del layout: 
+  - #0a0a0a o #111111 (negro profundo, aspecto premium impecable).
+* Superficie de contenedores/tarjetas (Cards): 
+  - #1a1a1a con borde sutil de #2a2a2a.
+* Sidebar:
+  - Fijo, colapsable. Ancho: 240px (expandido) / 60px (colapsado).
+* Colores de Acento y Estados:
+  - Verde (#22c55e): Color principal. Para highlights, estados "ganado/pagado", 
+    e indicadores activos.
+  - Naranja/Amber (#f59e0b): Estados "pendiente/borrador" y advertencias.
+  - Rojo (#ef4444): Estados "vencido/perdido" y acciones críticas.
+* Tipografía:
+  - Inter o Geist (ya cargadas en Next.js), con alto contraste en texto 
+    (blanco para títulos, gris claro para descripciones).
+* Bordes y Esquinas:
+  - Radio de 8px en tarjetas/cards.
+  - Radio de 6px en badges de estado.
+* Iconografía:
+  - Lucide React (ya disponible en Next.js).
+* Componentes Reutilizables a crear (en /components/ui/):
+  - MetricCard.jsx: KPI Card con título, valor, delta (+/- % o numérico), icono.
+  - StatusBadge.jsx: Badge de color dinámico y bordes redondeados según estado.
+  - DataTable.jsx: Tabla base premium reutilizable, con diseño responsivo.
+  - SectionHeader.jsx: Encabezado de sección con título, subtítulo y acciones.
+  - EmptyState.jsx: Vista alternativa elegante para tablas sin registros.
+  - PageHeader.jsx: Título de página principal con selector de rango de fecha.
+
+--------------------------------------------------------------------------------
+2. ESTRUCTURA DE NAVEGACIÓN Y URLS
+--------------------------------------------------------------------------------
+El usuario requiere la siguiente estructura en el sidebar. Utilizaremos Next.js
+rewrites para mapear las URLs amigables en español al sistema actual, o ajustaremos
+las carpetas y llamadas para asegurar consistencia total:
+* Dashboard (Overview)     → /dashboard
+* Clientes                 → /dashboard/clientes (mapeado internamente a /clients)
+* Facturas                 → /dashboard/facturas (mapeado internamente a /invoices)
+* Productos                → /dashboard/productos (mapeado internamente a /products)
+* Reportes                 → /dashboard/reportes (mapeado internamente a /reports)
+* Configuración            → /dashboard/configuracion (mapeado internamente a /settings)
+
+--------------------------------------------------------------------------------
+3. ORDEN DE IMPLEMENTACIÓN DETALLADO
+--------------------------------------------------------------------------------
+
+FASE 1: LAYOUT BASE + SIDEBAR COLAPSABLE
+* Layout compartido (/app/(dashboard)/layout.jsx) con soporte colapsable persistente.
+* Panel lateral (Sidebar) con:
+  - Logo "Lexis" en la parte superior.
+  - Ítems de navegación con iconos Lucide correspondientes.
+  - Indicador visual de página activa: borde verde izquierdo (#22c55e) + fondo verde muy sutil y degradado.
+  - Botón de contraer/expandir al fondo (Collapse).
+* Header superior (Top Header) con:
+  - Buscador global premium.
+  - Centro de notificaciones.
+  - Avatar del usuario con menú desplegable e información de perfil.
+
+FASE 2: DASHBOARD PRINCIPAL (/dashboard)
+* 4 MetricCards superiores con animaciones al pasar el cursor (hover):
+  - Ingresos Totales (ej. $2.4M con delta verde "+12.5% vs mes anterior")
+  - Facturas Activas (ej. 147 con delta naranja "+8 vs mes anterior")
+  - Tasa de Cobro (ej. 98.4% con delta verde "+1.2%")
+  - Clientes Nuevos (ej. 892 con delta verde "+18.3%")
+* Sección Media:
+  - Izquierda: Gráfico de línea "Tendencia de Ingresos" (Reales vs Meta, 12 meses) usando Recharts con colores personalizados (verde y azul).
+  - Derecha: "Etapas del Pipeline" con barras de progreso detalladas por estado (Borrador, Enviada, Pagada, Vencida).
+* Sección Inferior:
+  - Fila inferior izquierda: Tabla de "Facturas Recientes" compacta (Cliente, Monto, Badge de Estado).
+  - Fila inferior derecha: Lista de "Top Clientes" rankeada con avatares, nombre del cliente, monto total facturado y número de tratos/facturas.
+
+FASE 3: CLIENTES (/dashboard/clientes)
+* Tabla de clientes premium con columnas:
+  - Avatar + Nombre del Cliente
+  - Correo Electrónico (Email)
+  - Teléfono
+  - Total Facturado
+  - Facturas Activas
+  - Estado del Cliente (Activo / Inactivo)
+  - Acciones (···) con menú contextual interactivo
+* Filtros superiores interactivos: Todos / Activos / Inactivos.
+* Buscador integrado interactivo.
+* Botón destacado de color verde "Nuevo Cliente" en la esquina superior derecha.
+
+FASE 4: FACTURAS (/dashboard/facturas)
+* Tabla de facturas con columnas:
+  - # Factura
+  - Cliente
+  - Valor Total
+  - Estado (Badge de color: Pagada=Verde, Pendiente=Amber, Vencida=Rojo, Borrador=Gris)
+  - Fecha de Emisión
+  - Fecha de Vencimiento
+  - Acciones (Editar, Descargar PDF, Eliminar)
+* Filtros rápidos superiores: Todas / Pagadas / Pendientes / Vencidas / Borrador.
+* Buscador de facturas.
+* Botón premium verde "Nueva Factura" en el top derecho.
+
+FASE 5: PRODUCTOS (/dashboard/productos)
+* Tabla premium de productos con columnas:
+  - Nombre del Producto
+  - Categoría
+  - Precio de Venta
+  - Unidad de Medida
+  - Estado (Activo / Inactivo)
+  - Acciones (Editar, Eliminar)
+* Buscador de inventario.
+* Botón premium verde "Nuevo Producto".
+
+FASE 6: REPORTES (/dashboard/reportes)
+* 3 Cards de KPI Rápido en la cabecera:
+  - Ingresos del Período
+  - Facturas Emitidas
+  - Tasa de Cobro
+* Lista de reportes generables:
+  1. Resumen mensual de ingresos
+  2. Facturas vencidas y por vencer
+  3. Clientes con mayor volumen
+  4. Productos más vendidos
+  5. Flujo de caja estimado
+  6. Reporte de impuestos del período
+* Cada reporte incluirá: Icono descriptivo, Nombre, Descripción corta, Badge de categoría, Fecha de última generación, y dos botones: "Descargar" y "Generar nuevo".
+* Soporte para estado de carga animado ("Generando..." con spinner ámbar).
+
+--------------------------------------------------------------------------------
+4. ANÁLISIS DE LA INTERFAZ DE LAS IMÁGENES DE REFERENCIA
+--------------------------------------------------------------------------------
+* El tema oscuro utiliza sombras muy suaves pero notables para dar profundidad.
+* Las tarjetas tienen un borde fino #2a2a2a y un sutil degradado de fondo o color sólido #1a1a1a que contrasta perfectamente con el negro puro (#0a0a0a) del fondo general.
+* Los badges tienen colores vibrantes pero desaturados (e.g. verde en formato opacity 10% para el fondo y 100% para el texto, logrando el efecto de vidrio tintado premium).
+* Los gráficos usan líneas limpias sin cuadrículas invasivas, priorizando la legibilidad estética.
+* Los elementos interactivos reaccionan suavemente con transiciones CSS (transition-all duration-300).
+
+================================================================================

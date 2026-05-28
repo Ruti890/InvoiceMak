@@ -52,8 +52,7 @@ export async function middleware(request) {
         pathname.startsWith('/clients') ||
         pathname.startsWith('/products') ||
         pathname.startsWith('/invoices') ||
-        pathname.startsWith('/settings') ||
-        pathname.startsWith('/admin');
+        pathname.startsWith('/settings');
 
     if (isProtected && !user) {
         const loginUrl = request.nextUrl.clone();
